@@ -2,7 +2,7 @@ import * as express from "express";
 import {Express, Request, Response} from "express";
 import axios from "axios";
 
-const apiKey: string = 'RGAPI-4b6b97fd-2832-41ff-9ebc-c67e15c41c51';
+const apiKey: string = 'RGAPI-f7f5bb02-6b1b-47c8-9f7a-f4bcc132dbae';
 const testUserRouter = express.Router();
 
 testUserRouter.get('/', (req: Request, res: Response): void => {
@@ -30,21 +30,30 @@ function getUserMatches(expressResponse: Response, accountId: string): void {
     axios.get(reqURL, {}).then(riotResp => {
         if (riotResp.status == 200) {
             getAllMatchData(expressResponse, riotResp.data.matches);
-            expressResponse.send(riotResp.data.matches);
-
+            // expressResponse.send(riotResp.data.matches);
         }
     });
 }
 
-function getAllMatchData(expressResponse: Response, matches: [any]): void {
-    let matchDataList: {};
-    let matchID: number = null;
-    let reqURL: string = `https://na1.api.riotgames.com/lol/match/v4/matches/${matchID}?api_key=${apiKey}`;
-    for (let i = 0; i < matches.length; i ++){
+async function getAllMatchData(expressResponse: Response, matches: [any]): Promise<any> {
+    let matchDataList = [];
+
+    // temp variable to limit requests
+    let rateLimiter: number = Math.min(matches.length, 5);
+
+    for (let i = 0; i < rateLimiter; i++) {
         let match = matches[i];
-        console.log(match.gameId);
+        let matchID = match.gameId;
+        let reqURL: string = `https://na1.api.riotgames.com/lol/match/v4/matches/${matchID}?api_key=${apiKey}`;
+        await axios.get(reqURL, {}).then(
+            resp => {
+                console.log("adding!");
+                matchDataList.push(resp.data);
+            }
+        );
     }
+    expressResponse.send(matchDataList);
 }
 
-export default testUserRouter;
 
+export default testUserRouter;
